@@ -1,8 +1,13 @@
 import { Inter } from 'next/font/google'
-import { NextAuthProvider } from './providers'
+import { Providers } from './providers'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
+
+export const metadata = {
+  title: 'HandyHive',
+  description: 'Connect with verified domestic service providers',
+}
 
 export default function RootLayout({
   children,
@@ -12,9 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <NextAuthProvider>
-          {children}
-        </NextAuthProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   )
