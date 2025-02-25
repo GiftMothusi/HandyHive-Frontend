@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
+import Image from "next/image"
 
 // Types
 interface User {
@@ -104,6 +105,7 @@ export default function DashboardPage() {
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -119,6 +121,22 @@ export default function DashboardPage() {
 
     fetchUserData()
   }, [router])
+
+  useEffect(() => {
+    // Close the user menu when clicking outside
+    const handleClickOutside = (event: MouseEvent) => {
+      const menu = document.getElementById('userMenu')
+      const avatar = document.getElementById('avatarButton')
+      if (menu && !menu.contains(event.target as Node) && !avatar?.contains(event.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   const handleLogout = async () => {
     try {
@@ -224,7 +242,7 @@ export default function DashboardPage() {
               </Button>
             </nav>
             <div className="p-4 border-t">
-              <Button variant="outline" className="w-full" onClick={handleLogout}>
+              <Button variant="outline" className="w-full bg-red-500" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
               </Button>
@@ -239,10 +257,11 @@ export default function DashboardPage() {
           <SheetContent className="sm:max-w-md overflow-auto">
             <div className="space-y-4">
               <div className="relative h-48 w-full overflow-hidden rounded-lg">
-                <img
+                <Image
                   src={selectedService.image || "/placeholder.svg"}
                   alt={selectedService.name}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                 />
                 <Button
                   size="icon"
@@ -339,10 +358,51 @@ export default function DashboardPage() {
               <Bell className="h-5 w-5" />
               <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-primary"></span>
             </Button>
-            <Avatar className="h-8 w-8">
-              <AvatarImage src="/placeholder.svg?height=32&width=32" alt={user?.name || "User"} />
-              <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
-            </Avatar>
+            
+            {/* User dropdown menu */}
+            <div className="relative">
+              <button 
+                id="avatarButton"
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center focus:outline-none"
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src="/placeholder.svg?height=32&width=32" alt={user?.name || "User"} />
+                  <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                </Avatar>
+              </button>
+              
+              {/* Dropdown menu */}
+              {userMenuOpen && (
+                <div 
+                  id="userMenu" 
+                  className="absolute right-0 mt-2 py-2 w-48 bg-white rounded-md shadow-lg z-10"
+                >
+                  <div className="px-4 py-2 border-b">
+                    <p className="text-sm font-medium">{user?.name}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
+                  </div>
+                  <Link 
+                    href="/profile" 
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Profile
+                  </Link>
+                  <Link 
+                    href="/settings" 
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Settings
+                  </Link>
+                  <button 
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -384,11 +444,12 @@ export default function DashboardPage() {
             filteredServices.map((service) => (
               <Card key={service.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative h-48">
-                  <img
-                    src={service.image || "/placeholder.svg"}
-                    alt={service.name}
-                    className="w-full h-full object-cover"
-                  />
+                    <Image
+                        src={service.image || "/placeholder.svg"}
+                        alt={service.name}
+                        fill
+                        className="object-cover"
+                    />
                   <Badge className="absolute top-2 right-2">{service.category}</Badge>
                 </div>
                 <CardContent className="pt-4">
@@ -437,4 +498,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
