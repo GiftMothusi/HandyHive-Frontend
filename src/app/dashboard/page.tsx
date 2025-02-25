@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Bell, Calendar, Home, LogOut, Menu, Search, Settings, User, X, Star, Clock, DollarSign } from "lucide-react"
+import { Bell, Calendar, Home, LogOut, Menu, Search, Settings, User, X, Star, Clock } from "lucide-react"
 import { api } from "@/lib/axios"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
