@@ -1,179 +1,172 @@
-'use client';
+"use client"
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { AlertCircle, Loader2 } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import type React from "react"
 
-interface FormData {
-  token: string;
-  email: string;
-  password: string;
-  password_confirmation: string;
-}
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { AlertCircle, Loader2, Mail, Lock, ArrowRight } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAuth } from "@/hooks/useAuth"
+import type { ResetPasswordData } from "@/types/auth"
 
 export default function ResetPasswordPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<FormData>({
-    token: '',
-    email: '',
-    password: '',
-    password_confirmation: '',
-  });
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { resetPassword, error, loading } = useAuth()
+
+  const [formData, setFormData] = useState<ResetPasswordData>({
+    email: "",
+    password: "",
+    password_confirmation: "",
+    token: "",
+  })
 
   useEffect(() => {
     // Get token and email from URL parameters
-    const token = searchParams.get('token');
-    const email = searchParams.get('email');
+    const token = searchParams.get("token")
+    const email = searchParams.get("email")
 
     if (!token || !email) {
-      setError('Invalid reset link');
-      return;
+      router.push("/forgot-password")
+      return
     }
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       token,
       email: decodeURIComponent(email),
-    }));
-  }, [searchParams]);
+    }))
+  }, [searchParams, router])
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
     if (formData.password !== formData.password_confirmation) {
-      setError('Passwords do not match');
-      return;
+      return // Handle password mismatch error
     }
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Password reset failed');
-      }
-
-      // Redirect to login page with success message
-      router.push('/login?reset=success');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reset password');
-    } finally {
-      setLoading(false);
-    }
-  };
+    await resetPassword(formData)
+  }
 
   // If there's no token or email in the URL, show an error state
   if (!formData.token || !formData.email) {
     return (
-      <div className="space-y-4">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Invalid or expired reset link. Please request a new one.</AlertDescription>
-        </Alert>
-        <div className="text-center">
-          <Link href="/forgot-password" className="text-blue-600 hover:text-blue-500">
-            Request New Reset Link
-          </Link>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+        <Card className="w-full max-w-md shadow-xl border-0">
+          <CardContent className="pt-6 space-y-4">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>Invalid or expired reset link. Please request a new one.</AlertDescription>
+            </Alert>
+            <div className="text-center">
+              <Link href="/forgot-password" className="text-primary hover:underline">
+                Request New Reset Link
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2 text-center">
-        <h1 className="text-3xl font-bold">Reset Password</h1>
-        <p className="text-gray-500">Enter your new password</p>
-      </div>
-
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            readOnly
-            className="w-full px-3 py-2 border rounded-md bg-gray-50"
-            value={formData.email}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="password" className="text-sm font-medium">
-            New Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            required
-            className="w-full px-3 py-2 border rounded-md"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            minLength={8}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="password_confirmation" className="text-sm font-medium">
-            Confirm New Password
-          </label>
-          <input
-            id="password_confirmation"
-            type="password"
-            required
-            className="w-full px-3 py-2 border rounded-md"
-            value={formData.password_confirmation}
-            onChange={(e) => setFormData({ ...formData, password_confirmation: e.target.value })}
-            minLength={8}
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent 
-            rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 
-            hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 
-            focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="animate-spin h-5 w-5 mr-2" />
-              Resetting Password...
-            </>
-          ) : (
-            'Reset Password'
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+      <Card className="w-full max-w-md shadow-xl border-0">
+        <CardHeader className="space-y-1">
+          <div className="flex justify-center mb-2">
+            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Lock className="h-6 w-6 text-primary" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl font-bold text-center">Reset Password</CardTitle>
+          <CardDescription className="text-center">Enter your new password</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error.message}</AlertDescription>
+            </Alert>
           )}
-        </button>
-      </form>
 
-      <p className="text-center text-sm text-gray-600">
-        Remember your password?{' '}
-        <Link href="/login" className="text-blue-600 hover:text-blue-500">
-          Sign in
-        </Link>
-      </p>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input id="email" type="email" readOnly className="pl-10 bg-muted" value={formData.email} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">New Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  className="pl-10"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                  minLength={8}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password_confirmation">Confirm New Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password_confirmation"
+                  type="password"
+                  placeholder="••••••••"
+                  className="pl-10"
+                  value={formData.password_confirmation}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      password_confirmation: e.target.value,
+                    })
+                  }
+                  required
+                  minLength={8}
+                />
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Resetting Password...
+                </>
+              ) : (
+                <>
+                  Reset Password
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter className="flex flex-col space-y-4 border-t pt-4">
+          <div className="text-center text-sm">
+            Remember your password?{" "}
+            <Link href="/login" className="font-medium text-primary hover:underline">
+              Sign in
+            </Link>
+          </div>
+        </CardFooter>
+      </Card>
     </div>
-  );
+  )
 }
+
