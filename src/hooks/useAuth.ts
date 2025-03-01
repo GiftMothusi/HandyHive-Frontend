@@ -30,9 +30,19 @@ export function useAuth(): UseAuthReturn {
                     // Fetch the user profile
                     const response = await api.get('/user');
                     setUser(response.data);
+                    
+                    // Store username and email in localStorage for easier access
+                    if (response.data.name) {
+                        localStorage.setItem('username', response.data.name);
+                    }
+                    if (response.data.email) {
+                        localStorage.setItem('email', response.data.email);
+                    }
                 } catch (err) {
                     // If the token is invalid, clear it
                     localStorage.removeItem('token');
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('email');
                     delete api.defaults.headers.common['Authorization'];
                     throw err;
                 }
@@ -68,11 +78,22 @@ export function useAuth(): UseAuthReturn {
             const token = response.data.token;
             localStorage.setItem('token', token);
             
+            // Store user data for easier access
+            if (response.data.user?.name) {
+                localStorage.setItem('username', response.data.user.name);
+            }
+            if (response.data.user?.email) {
+                localStorage.setItem('email', response.data.user.email);
+            }
+            
             // Set the Authorization header for future requests
             api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
             
             // Set the user in state
             setUser(response.data.user);
+            
+            // Also store token as a cookie for middlewares
+            document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
             
             // Redirect to dashboard
             router.push('/dashboard');
@@ -86,9 +107,12 @@ export function useAuth(): UseAuthReturn {
     const logout = async (): Promise<void> => {
         try {
             await api.post('/auth/logout');
-            // Clear token and user state
+            // Clear all auth-related data
             localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            localStorage.removeItem('email');
             delete api.defaults.headers.common['Authorization'];
+            document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
             setUser(null);
             router.push('/login');
         } catch (err) {
