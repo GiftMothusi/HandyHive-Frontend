@@ -1,50 +1,109 @@
-"use client"
+'use client'
 
-import type React from "react"
-
-import { useState } from "react"
-import Link from "next/link"
-import { ArrowLeft, Star, Send } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { ArrowLeft, Star, Send, CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAppointments } from "@/contexts/AppointmentContext";
+import { Appointment, ReviewData } from "@/types/appointment";
 
 export default function ReviewPage({ params }: { params: { id: string } }) {
-  const [rating, setRating] = useState(0)
-  const [hoveredRating, setHoveredRating] = useState(0)
-  const [review, setReview] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const { getAppointmentById, submitReview } = useAppointments();
+  
+  const [appointment, setAppointment] = useState<Appointment | undefined>(undefined);
+  const [rating, setRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [review, setReview] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock appointment data - in a real app, you'd fetch this based on the ID
-  const appointment = {
-    id: params.id,
-    serviceName: "House Cleaning",
-    serviceCategory: "Domestic Worker",
-    providerName: "Maria Johnson",
-    providerImage: "/placeholder.svg?height=400&width=400",
-    date: "January 15, 2025",
-  }
+  useEffect(() => {
+    // Get appointment details
+    const appointmentData = getAppointmentById(params.id);
+    
+    if (!appointmentData) {
+      setError("Appointment not found");
+      return;
+    }
+
+    setAppointment(appointmentData);
+  }, [params.id, getAppointmentById]);
 
   const handleSubmitReview = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    
+    if (!appointment) return;
+    if (rating === 0) return;
+    
+    setIsLoading(true);
+    setError(null);
 
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false)
-      setSubmitted(true)
-    }, 1500)
+    const reviewData: ReviewData = {
+      appointmentId: appointment.id,
+      rating,
+      review,
+      categories: {
+        punctuality: rating,
+        quality: rating,
+        communication: rating,
+        professionalism: rating
+      }
+    };
+
+    try {
+      await submitReview(reviewData);
+      setIsSubmitted(true);
+    } catch (err) {
+      console.error("Failed to submit review:", err);
+      setError("Failed to submit your review. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="container mx-auto max-w-2xl">
+          <div className="mb-6">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/appointments">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Appointments
+              </Link>
+            </Button>
+          </div>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center text-red-600">
+                <p>{error}</p>
+                <Button 
+                  className="mt-4" 
+                  variant="outline" 
+                  asChild
+                >
+                  <Link href="/appointments">Return to Appointments</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
-  if (submitted) {
+  if (isSubmitted) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-lg border-0">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 bg-green-100 w-16 h-16 rounded-full flex items-center justify-center">
-              <Star className="h-8 w-8 text-green-600 fill-current" />
+              <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
             <CardTitle className="text-2xl">Thank You!</CardTitle>
             <CardDescription>Your review has been submitted successfully</CardDescription>
@@ -64,7 +123,15 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
           </CardFooter>
         </Card>
       </div>
-    )
+    );
+  }
+
+  if (!appointment) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   return (
@@ -87,7 +154,6 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
           <CardContent className="space-y-6">
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
-                <AvatarImage src={appointment.providerImage} alt={appointment.providerName} />
                 <AvatarFallback>{appointment.providerName.charAt(0)}</AvatarFallback>
               </Avatar>
               <div>
@@ -139,8 +205,8 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading || rating === 0}>
-                {loading ? (
+              <Button type="submit" className="w-full" disabled={isLoading || rating === 0}>
+                {isLoading ? (
                   <span className="flex items-center">
                     <svg
                       className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
@@ -176,6 +242,5 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
         </Card>
       </div>
     </div>
-  )
+  );
 }
-
