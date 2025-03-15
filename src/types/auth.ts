@@ -45,6 +45,7 @@ export interface UseAuthReturn {
     user: User | null;
     loading: boolean;
     error: AuthError | null;
+    setError: (error: AuthError | null) => void;
     register: (data: RegisterData) => Promise<void>;
     login: (credentials: LoginCredentials) => Promise<void>;
     logout: () => Promise<void>;

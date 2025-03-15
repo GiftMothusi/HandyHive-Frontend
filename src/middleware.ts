@@ -28,10 +28,14 @@ export function middleware(request: NextRequest) {
   // Get the token from cookies
   const token = request.cookies.get('token')?.value;
 
-  // Get userType from a secure cookie or localStorage
+  // Get userType from a secure cookie
   // In a real implementation, this would be extracted from a JWT token
-  // For demo purposes, we're using a simple check
   const userType = request.cookies.get('userType')?.value;
+  
+  // Debug logging (this will appear in server logs)
+  console.log('Middleware checking path:', pathname);
+  console.log('Token present:', !!token);
+  console.log('User type from cookie:', userType);
 
   // Check if path is admin-only
   const isAdminPath = adminPaths.some(path => 
@@ -53,7 +57,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
   
+  // If user is a provider and trying to access the root dashboard, redirect to provider dashboard
+  if (pathname === '/dashboard' && userType === 'provider') {
+    return NextResponse.redirect(new URL('/provider', request.url));
+  }
 
+  // If user is an admin and trying to access the root dashboard, redirect to admin dashboard
+  if (pathname === '/dashboard' && userType === 'admin') {
+    return NextResponse.redirect(new URL('/admin', request.url));
+  }
   
   // Check if path starts with any protected path
   const isProtectedPath = protectedPaths.some(path => 

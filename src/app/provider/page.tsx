@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Bell, Calendar, Home, LogOut, Menu, 
   User, Package, Users, PlusCircle, AlertCircle,
@@ -60,25 +61,55 @@ export default function ProviderDashboardPage() {
       try {
         setLoading(true);
         
-        // Fetch services
-        const servicesResponse = await api.get('/provider/services');
-        setServices(servicesResponse.data.data);
+        // First check if user is authenticated as a provider
+        const userResponse = await api.get('/auth/user');
         
-        // Fetch staff profiles
+        if (!userResponse.data || userResponse.data.user_type !== 'provider') {
+          console.error('User is not authenticated as a provider');
+          setError('You must be logged in as a service provider to access this dashboard.');
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch services with simplified approach
+        const servicesResponse = await api.get('/provider/services');
+        
+        if (servicesResponse.data && servicesResponse.data.data) {
+          setServices(servicesResponse.data.data);
+        } else {
+          console.warn('Unexpected services response format:', servicesResponse.data);
+          setServices([]);
+        }
+        
+        // Fetch staff profiles with simplified approach
         const staffResponse = await api.get('/provider/staff');
-        setStaffProfiles(staffResponse.data.data);
+        
+        if (staffResponse.data && staffResponse.data.data) {
+          setStaffProfiles(staffResponse.data.data);
+        } else {
+          console.warn('Unexpected staff response format:', staffResponse.data);
+          setStaffProfiles([]);
+        }
         
         setError(null);
       } catch (err: unknown) {
         console.error('Failed to fetch provider data:', err);
-        setError(
-          err && typeof err === 'object' && 'response' in err && 
-          err.response && typeof err.response === 'object' && 'data' in err.response && 
-          err.response.data && typeof err.response.data === 'object' && 'message' in err.response.data && 
-          typeof err.response.data.message === 'string' 
-            ? err.response.data.message 
-            : 'Failed to load data. Please try again.'
-        );
+        
+        // Improved error handling with detailed logging
+        if (err && typeof err === 'object' && 'response' in err) {
+          const errorResponse = err.response as {
+            status?: number;
+            statusText?: string;
+            data?: unknown;
+          };
+          console.error('API Error details:', {
+            status: errorResponse?.status,
+            statusText: errorResponse?.statusText,
+            data: errorResponse?.data
+          });
+        }
+        
+        setError('Failed to load provider data. Please ensure you are logged in as a provider.');
       } finally {
         setLoading(false);
       }
@@ -87,13 +118,23 @@ export default function ProviderDashboardPage() {
     fetchData();
   }, []);
   
+  // Import useAuth hook for better logout handling
+  const { logout } = useAuth();
+  
   const handleLogout = async () => {
     try {
-      await api.post('/auth/logout');
-      document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-      router.push('/login');
+      // Use the improved logout function from useAuth hook
+      await logout();
     } catch (error) {
       console.error('Logout error:', error);
+      // Fallback logout if the hook fails
+      document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+      document.cookie = "userType=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+      localStorage.removeItem('token');
+      localStorage.removeItem('username');
+      localStorage.removeItem('email');
+      localStorage.removeItem('userType');
+      router.push('/login');
     }
   };
   
@@ -144,25 +185,25 @@ export default function ProviderDashboardPage() {
             </div>
             <nav className="flex-1 p-4 space-y-2">
               <Button variant="ghost" className="w-full justify-start" asChild>
-                <Link href="/dashboard">
+                <Link href="/provider">
                   <Home className="mr-2 h-4 w-4" />
                   Home
                 </Link>
               </Button>
               <Button variant="ghost" className="w-full justify-start bg-accent" asChild>
-                <Link href="/provider">
+                <Link href="/provider/dashboard">
                   <Package className="mr-2 h-4 w-4" />
                   Provider Dashboard
                 </Link>
               </Button>
               <Button variant="ghost" className="w-full justify-start" asChild>
-                <Link href="/appointments">
+                <Link href="/provider/appointments">
                   <Calendar className="mr-2 h-4 w-4" />
                   Appointments
                 </Link>
               </Button>
               <Button variant="ghost" className="w-full justify-start" asChild>
-                <Link href="/profile">
+                <Link href="/provider/profile">
                   <User className="mr-2 h-4 w-4" />
                   Profile
                 </Link>
@@ -189,19 +230,19 @@ export default function ProviderDashboardPage() {
           </div>
           <div className="hidden md:flex items-center space-x-1">
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/dashboard">
+              <Link href="/provider">
                 <Home className="mr-2 h-4 w-4" />
                 Home
               </Link>
             </Button>
             <Button variant="ghost" size="sm" className="bg-accent" asChild>
-              <Link href="/provider">
+              <Link href="/provider/dashboard">
                 <Package className="mr-2 h-4 w-4" />
                 Provider Dashboard
               </Link>
             </Button>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/appointments">
+              <Link href="/provider/appointments">
                 <Calendar className="mr-2 h-4 w-4" />
                 Appointments
               </Link>
@@ -211,6 +252,10 @@ export default function ProviderDashboardPage() {
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
               <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-primary"></span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
             </Button>
             <Avatar className="h-8 w-8">
               <AvatarFallback>SP</AvatarFallback>
