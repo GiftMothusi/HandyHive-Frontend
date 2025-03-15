@@ -24,6 +24,9 @@ api.interceptors.request.use(
       config.headers['Authorization'] = `Bearer ${token}`;
     }
     
+    // Ensure withCredentials is always set
+    config.withCredentials = true;
+    
     return config;
   },
   (error) => {
@@ -35,23 +38,33 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('API Error:', error.response || error);
-    
-    // If we get a 401 Unauthorized error, clear the token
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
-      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    // More detailed error logging
+    if (error.response) {
+      console.error('API Error:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        url: error.config?.url
+      });
+    } else {
+      console.error('API Error:', error.message || error);
     }
     
-    const { response } = error;
+    // If we get a 401 Unauthorized error, clear the token and cookies
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('username');
+      localStorage.removeItem('email');
+      localStorage.removeItem('userType');
+      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      document.cookie = 'userType=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      
+      // Redirect to login if not already there
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    }
     
-    // Create a standardized error object
-    const errorObj = {
-      message: response?.data?.message || 'An unexpected error occurred',
-      errors: response?.data?.errors || {},
-      status: response?.status || 500
-    };
-    
-    return Promise.reject(errorObj);
+    return Promise.reject(error);
   }
 );

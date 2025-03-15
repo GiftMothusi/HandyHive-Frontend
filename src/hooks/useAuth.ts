@@ -57,11 +57,43 @@ export function useAuth(): UseAuthReturn {
         setError(null);
         
         try {
-            await api.post('/auth/register', data);
+            // Add detailed logging for debugging
+            console.log('Sending registration data to API:', {
+                ...data,
+                password: '[REDACTED]',
+                password_confirmation: '[REDACTED]'
+            });
+            
+            const response = await api.post('/auth/register', data);
+            console.log('Registration API response:', response.data);
+            
+            // If we get here, registration was successful
+            // Redirect to login page with success message
             router.push('/login?registered=true');
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Registration error:', err);
-            setError(err as AuthError);
+            
+            // Enhanced error handling
+            const error = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
+            if (error.response && error.response.data) {
+                // Use the error format from the backend
+                setError({
+                    message: error.response.data.message || 'Registration failed. Please try again.',
+                    errors: error.response.data.errors || {}
+                });
+            } else if (error && typeof error === 'object' && 'message' in error) {
+                // Handle network errors
+                setError({
+                    message: `Connection error: ${(error as { message: string }).message}`,
+                    errors: {}
+                });
+            } else {
+                // Fallback for unexpected error formats
+                setError({
+                    message: 'Unable to create account. Please try again later.',
+                    errors: {}
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -85,6 +117,11 @@ export function useAuth(): UseAuthReturn {
             if (response.data.user?.email) {
                 localStorage.setItem('email', response.data.user.email);
             }
+            if (response.data.user?.userType) {
+                localStorage.setItem('userType', response.data.user.userType);
+                // Set userType cookie for middleware
+                document.cookie = `userType=${response.data.user.userType}; path=/; max-age=86400; SameSite=Lax`;
+            }
             
             // Set the Authorization header for future requests
             api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -95,8 +132,21 @@ export function useAuth(): UseAuthReturn {
             // Also store token as a cookie for middlewares
             document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
             
-            // Redirect to dashboard
-            router.push('/dashboard');
+            // Add debug logging
+            console.log('Login successful, user type:', response.data.user?.userType);
+            
+            // Redirect based on user type using window.location for a full page reload
+            if (response.data.user?.userType === 'admin') {
+                console.log('Redirecting to admin dashboard');
+                window.location.href = '/admin';
+            } else if (response.data.user?.userType === 'provider') {
+                console.log('Redirecting to provider dashboard');
+                window.location.href = '/provider';
+            } else {
+                console.log('Redirecting to client dashboard');
+                // Default to dashboard for clients or unknown types
+                window.location.href = '/dashboard';
+            }
         } catch (err) {
             setError(err as AuthError);
         } finally {
@@ -111,12 +161,27 @@ export function useAuth(): UseAuthReturn {
             localStorage.removeItem('token');
             localStorage.removeItem('username');
             localStorage.removeItem('email');
+            localStorage.removeItem('userType');
             delete api.defaults.headers.common['Authorization'];
+            
+            // Clear all auth cookies
             document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+            document.cookie = "userType=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+            
             setUser(null);
             router.push('/login');
         } catch (err) {
-            setError(err as AuthError);
+            console.error('Logout error:', err);
+            // Still clear cookies and local storage even if the API call fails
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            localStorage.removeItem('email');
+            localStorage.removeItem('userType');
+            delete api.defaults.headers.common['Authorization'];
+            document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+            document.cookie = "userType=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+            setUser(null);
+            router.push('/login');
         }
     };
 
@@ -164,6 +229,7 @@ export function useAuth(): UseAuthReturn {
         user,
         loading,
         error,
+        setError,
         register,
         login,
         logout,

@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/useAuth"
 import type { RegisterData } from "@/types/auth"
 
 export default function RegisterPage() {
-  const { register, error, loading } = useAuth()
+  const { register, error, loading, setError } = useAuth()
 
   const [formData, setFormData] = useState<RegisterData>({
     name: "",
@@ -28,7 +28,59 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await register(formData)
+    
+    // Client-side validation
+    let hasErrors = false
+    const clientErrors: Record<string, string[]> = {}
+    
+    // Check required fields
+    if (!formData.name.trim()) {
+      clientErrors.name = ['Full name is required']
+      hasErrors = true
+    }
+    
+    if (!formData.email.trim()) {
+      clientErrors.email = ['Email address is required']
+      hasErrors = true
+    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      clientErrors.email = ['Please enter a valid email address']
+      hasErrors = true
+    }
+    
+    if (!formData.phone.trim()) {
+      clientErrors.phone = ['Phone number is required']
+      hasErrors = true
+    }
+    
+    if (!formData.password) {
+      clientErrors.password = ['Password is required']
+      hasErrors = true
+    } else if (formData.password.length < 8) {
+      clientErrors.password = ['Password must be at least 8 characters']
+      hasErrors = true
+    }
+    
+    if (formData.password !== formData.password_confirmation) {
+      clientErrors.password_confirmation = ['Passwords do not match']
+      hasErrors = true
+    }
+    
+    if (hasErrors) {
+      setError({
+        message: 'Please fix the errors below',
+        errors: clientErrors
+      })
+      return
+    }
+    
+    // Clear any previous errors
+    setError(null)
+    
+    try {
+      await register(formData)
+    } catch (err) {
+      console.error("Registration submission error:", err)
+    }
   }
 
   return (
