@@ -55,68 +55,86 @@ export default function ProviderDashboardPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   
-  useEffect(() => {
+
     const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // First check if user is authenticated as a provider
+      const userResponse = await api.get('/user');
+      
+      if (!userResponse.data || userResponse.data.userType !== 'provider') {
+        console.error('User is not authenticated as a provider');
+        setError('You must be logged in as a service provider to access this dashboard.');
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch services with better error handling
       try {
-        setLoading(true);
-        
-        // First check if user is authenticated as a provider
-        const userResponse = await api.get('/auth/user');
-        
-        if (!userResponse.data || userResponse.data.user_type !== 'provider') {
-          console.error('User is not authenticated as a provider');
-          setError('You must be logged in as a service provider to access this dashboard.');
-          setLoading(false);
-          return;
-        }
-        
-        // Fetch services with simplified approach
         const servicesResponse = await api.get('/provider/services');
+        console.log('Services response:', servicesResponse);
         
-        if (servicesResponse.data && servicesResponse.data.data) {
+        if (servicesResponse.data && Array.isArray(servicesResponse.data.data)) {
           setServices(servicesResponse.data.data);
         } else {
-          console.warn('Unexpected services response format:', servicesResponse.data);
+          // Handle case where data might be empty but not an error
+          console.log('No services found or unexpected format:', servicesResponse.data);
           setServices([]);
         }
-        
-        // Fetch staff profiles with simplified approach
+      } catch (serviceErr) {
+        console.error('Failed to fetch provider services:', serviceErr);
+        // Don't set overall error, just handle service-specific failure
+      }
+      
+      // Fetch staff profiles with better error handling
+      try {
         const staffResponse = await api.get('/provider/staff');
+        console.log('Staff response:', staffResponse);
         
-        if (staffResponse.data && staffResponse.data.data) {
+        if (staffResponse.data && Array.isArray(staffResponse.data.data)) {
           setStaffProfiles(staffResponse.data.data);
         } else {
-          console.warn('Unexpected staff response format:', staffResponse.data);
+          // Handle case where data might be empty but not an error
+          console.log('No staff profiles found or unexpected format:', staffResponse.data);
           setStaffProfiles([]);
         }
-        
-        setError(null);
-      } catch (err: unknown) {
-        console.error('Failed to fetch provider data:', err);
-        
-        // Improved error handling with detailed logging
-        if (err && typeof err === 'object' && 'response' in err) {
-          const errorResponse = err.response as {
-            status?: number;
-            statusText?: string;
-            data?: unknown;
-          };
-          console.error('API Error details:', {
-            status: errorResponse?.status,
-            statusText: errorResponse?.statusText,
-            data: errorResponse?.data
-          });
-        }
-        
-        setError('Failed to load provider data. Please ensure you are logged in as a provider.');
-      } finally {
-        setLoading(false);
+      } catch (staffErr) {
+        console.error('Failed to fetch staff profiles:', staffErr);
+        // Don't set overall error, just handle staff-specific failure
       }
-    };
-    
-    fetchData();
-  }, []);
+      
+      // Clear any previous errors if we successfully got this far
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch provider data:', err);
+      
+      // More detailed error logging
+      if (err && typeof err === 'object' && 'response' in err) {
+        const errorResponse = err.response as {
+          status?: number;
+          statusText?: string;
+          data?: unknown;
+        };
+        console.error('API Error details:', {
+          status: errorResponse?.status,
+          statusText: errorResponse?.statusText,
+          data: errorResponse?.data
+        });
+      }
+      
+      setError('Failed to load provider data. Please try again or contact support.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(()=>{
+    fetchData()
+  },[])
+
   
   // Import useAuth hook for better logout handling
   const { logout } = useAuth();
