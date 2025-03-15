@@ -48,9 +48,29 @@ export default function LoginPage() {
 
       // Set the token as an HTTP-only cookie
       document.cookie = `token=${response.data.token}; path=/; max-age=86400; SameSite=Lax`
+      
+      // Set userType cookie for middleware
+      if (response.data.user?.userType) {
+        document.cookie = `userType=${response.data.user.userType}; path=/; max-age=86400; SameSite=Lax`
+      }
 
-      // Redirect to dashboard or the original requested page
-      router.push(redirectPath)
+      // Debug logging
+      console.log('Login response:', response.data)
+      console.log('User type:', response.data.user?.userType)
+      console.log('Cookies after login:', document.cookie)
+      
+      // Redirect based on user type using window.location for a full page reload
+      if (response.data.user?.userType === 'admin') {
+        console.log('Redirecting to admin dashboard')
+        window.location.href = '/admin'
+      } else if (response.data.user?.userType === 'provider') {
+        console.log('Redirecting to provider dashboard')
+        window.location.href = '/provider'
+      } else {
+        console.log('Redirecting to client dashboard')
+        // Default to dashboard for clients or the original requested page
+        window.location.href = redirectPath
+      }
     } catch (err: Error | unknown) {
       console.error("Login error:", err)
       const errorMessage = err instanceof Error ? err.message : "Login failed. Please check your credentials."
