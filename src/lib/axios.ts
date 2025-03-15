@@ -43,11 +43,18 @@ api.interceptors.response.use(
       console.error('API Error:', {
         status: error.response.status,
         statusText: error.response.statusText,
-        data: error.response.data,
-        url: error.config?.url
+        data: error.response.data || {},
+        url: error.config?.url,
+        method: error.config?.method
       });
-    } else {
-      console.error('API Error:', error.message || error);
+    } else if(error.request) {
+         // The request was made but no response was received
+        console.error('API Request Error (No Response):', {
+            url: error.config?.url,
+            method: error.config?.method
+        });
+    }else{
+        console.error('API Error:', error.message);
     }
     
     // If we get a 401 Unauthorized error, clear the token and cookies
